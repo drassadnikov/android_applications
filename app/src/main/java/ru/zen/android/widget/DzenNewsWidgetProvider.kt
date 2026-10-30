@@ -132,11 +132,9 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
 
         // Лента: ListView + RemoteViewsService + шаблон клика (URL статьи -> Дзен/браузер)
         val serviceIntent = Intent(context, DzenNewsWidgetService::class.java)
-        val firstAttach = ATTACHED.add(appWidgetId)
-        if (firstAttach) {
-            // Первый раз — присоединяем сервис ленты
-            views.setRemoteAdapter(R.id.news_list, serviceIntent)
-        }
+        // Сервис ленты: setRemoteAdapter на каждом обновлении — именно он
+        // заставляет ListView перечитать адаптер (смена рубрики работает).
+        views.setRemoteAdapter(R.id.news_list, serviceIntent)
 
         // Кликовый шаблон строк: ACTION_VIEW + URL статьи (fillIn из фабрики)
         val clickTemplate = Intent(Intent.ACTION_VIEW)
@@ -160,12 +158,6 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
         // setEmptyView не ставим: он скрывает info_line, когда список заполнен
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
-        if (!firstAttach) {
-            // Повторное обновление — лёгкий сигнал ленте «перечитай данные»
-            // (без повторного attach сервиса и полной перезагрузки списка)
-            @Suppress("DEPRECATION")
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.news_list)
-        }
     }
 
     /** «Обновлено 15:30 • USD 90.12▲ • EUR 98.34▼ • CNY 12.45».
@@ -302,9 +294,6 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
         const val ACTION_EXTERNAL_REFRESH = "ru.zen.android.WIDGET_REFRESH_EXT"
         const val ACTION_TOPIC_PAGE = "ru.zen.android.WIDGET_TOPIC_PAGE"
 
-        /** Id экземпляров, где уже присоединён RemoteViewsService
-         *  (повторные обновления идут через notifyAppWidgetViewDataChanged). */
-        private val ATTACHED = java.util.Collections.synchronizedSet(mutableSetOf<Int>())
 
         const val EXTRA_TAB = "tab"
         const val EXTRA_DELTA = "delta"

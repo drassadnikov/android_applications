@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Искра Дзен (только знак, прозрачный фон) — для превью виджета -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="44dp"
+    android:height="44dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M54,12
+        C58.5,36.5 67.5,45.5 96,54
+        C67.5,62.5 58.5,71.5 54,96
+        C49.5,71.5 40.5,62.5 12,54
+        C40.5,45.5 49.5,36.5 54,12 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54"
+                android:startY="12"
+                android:endX="54"
+                android:endY="96">
+                <item android:offset="0.0" android:color="#FFC400" />
+                <item android:offset="0.45" android:color="#FF7A00" />
+                <item android:offset="1.0" android:color="#E5187A" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

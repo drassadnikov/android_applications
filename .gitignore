@@ -1,0 +1,16 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Kotlin/IDE
+.kotlin/
+.idea/
+*.iml
+
+# Build output
+app/build/
+
+# Backups / temp
+*.bak
+*.log

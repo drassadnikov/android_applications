@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Палитра тёмной темы «Дзен» -->
+    <color name="dzen_bg">#121212</color>
+    <color name="dzen_card">#1E1E1E</color>
+    <color name="dzen_text_primary">#FFFFFF</color>
+    <color name="dzen_text_secondary">#AAAAAA</color>
+    <color name="dzen_accent">#E13800</color>
+</resources>

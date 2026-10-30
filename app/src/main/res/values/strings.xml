@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Дзен.Новости</string>
+    <string name="widget_title">Дзен.Новости</string>
+    <string name="widget_description">Новостной виджет Дзен: тематики с горизонтальным скроллом, кнопка обновления и лента со скроллом вниз</string>
+    <string name="widget_empty">Пока нет новостей</string>
+
+    <!-- Экран запуска: статус -->
+    <string name="status_title">Дзен.Новости</string>
+    <string name="status_dzen_missing">Виджет не работает</string>
+    <string name="details_dzen_missing">Требуется установить приложение Дзен (ru.zen.android).\nПосле установки виджет начнёт работать автоматически.</string>
+    <string name="status_dzen_ok">Дзен установлен</string>
+    <string name="details_dzen_ok">Виджет «Дзен.Новости» готов к работе.\nДобавьте его на рабочий стол:\nдолгое нажатие на фон → Виджеты → Дзен.Новости</string>
+
+    <!-- Тематики (горизонтально скроллируемая полоса) -->
+    <string name="topic_main">Главное</string>
+    <string name="topic_chef">Чебоксары</string>
+    <string name="topic_fresh">Свежее</string>
+    <string name="topic_social">Общество</string>
+    <string name="topic_svo">СВО</string>
+    <string name="topic_auto">Авто</string>
+    <string name="topic_movies">Кино</string>
+    <string name="topic_sport">Спорт</string>
+    <string name="topic_science">Наука</string>
+    <string name="topic_tech">Технологии</string>
+    <string name="topic_world">Мир</string>
+    <string name="topic_economy">Экономика</string>
+</resources>

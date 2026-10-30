@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Аватар источника: круг #FF4444 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#FF4444" />
+    <corners android:radius="9dp" />
+</shape>

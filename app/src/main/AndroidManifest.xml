@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Подгрузка курсов валют ЦБ -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Видимости пакета: проверяем установку оригинального Дзен (Android 11+) -->
+    <queries>
+        <package android:name="ru.zen.android" />
+    </queries>
+
+    <!-- «Дзен.Новости»: отдельное приложение-компаньон к Дзен (ru.zen.android) -->
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/dzen_logo"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.DzenDemo">
+
+        <!-- Экран запуска: проверяет, что приложение Дзен установлено -->
+        <activity
+            android:name="ru.zen.android.widget.MainActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Провайдер новостного виджета -->
+        <receiver
+            android:name="ru.zen.android.widget.DzenNewsWidgetProvider"
+            android:exported="false"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="ru.zen.android.WIDGET_TAB_CLICK" />
+                <action android:name="ru.zen.android.WIDGET_REFRESH" />
+                <action android:name="ru.zen.android.WIDGET_REFRESH_EXT" />
+                <action android:name="ru.zen.android.WIDGET_TOPIC_PAGE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dzen_news_widget_info" />
+        </receiver>
+
+        <!-- Сервис ленты новостей (ListView) -->
+        <service
+            android:name="ru.zen.android.widget.DzenNewsWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+    </application>
+</manifest>

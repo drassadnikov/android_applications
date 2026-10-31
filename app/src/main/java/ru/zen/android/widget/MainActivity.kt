@@ -40,14 +40,28 @@ class MainActivity : Activity() {
         val etRegion1 = findViewById<EditText>(R.id.et_region1)
         val etRegion2 = findViewById<EditText>(R.id.et_region2)
         val btnRegion = findViewById<Button>(R.id.btn_region)
-        etRegion1.setText(WidgetPrefs.getRegion1Alias(this))
-        etRegion2.setText(WidgetPrefs.getRegion2Alias(this))
+        // Поля показываем кириллицей (официальное имя региона из API Дзен);
+        // алиас (латиница) — только если имя ещё не синхронизировано.
+        etRegion1.setText(
+            WidgetPrefs.getRegion1Name(this).ifEmpty { WidgetPrefs.getRegion1Alias(this) }
+        )
+        etRegion2.setText(
+            WidgetPrefs.getRegion2Name(this).ifEmpty { WidgetPrefs.getRegion2Alias(this) }
+        )
         btnRegion.setOnClickListener {
             val a1 = NewsRepository.aliasForCity(etRegion1.text.toString())
             val a2 = NewsRepository.aliasForCity(etRegion2.text.toString())
             if (a1.isNotEmpty()) {
                 WidgetPrefs.setRegion1Alias(this, a1)
+                // Имя показываем кириллицей: сохраняем введённый текст,
+                // затем API Дзен синхронизирует официальное название.
+                WidgetPrefs.setRegion1Name(
+                    this, etRegion1.text.toString().trim().ifEmpty { a1 }
+                )
                 WidgetPrefs.setRegion2Alias(this, a2)
+                WidgetPrefs.setRegion2Name(
+                    this, etRegion2.text.toString().trim().ifEmpty { a2 }
+                )
                 // Сразу подгружаем ленты регионов (имена вкладок
                 // синхронизируются из ответа API Дзен)
                 NewsRepository.fetchTabAsync(applicationContext, 1, force = true) {

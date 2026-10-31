@@ -24,6 +24,9 @@ object WidgetPrefs {
     private const val KEY_BASE_EUR = "base_eur"
     private const val KEY_BASE_CNY = "base_cny"
     private const val KEY_BASE_DATE = "base_date"
+    private const val KEY_KR = "rate_kr"
+    private const val KEY_KR_DIR = "rate_kr_dir"
+    private const val KEY_KR_DATE = "rate_kr_date"
 
     fun getActiveTab(context: Context): Int =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -160,6 +163,33 @@ object WidgetPrefs {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putLong("rates_ts", millis)
+            .apply()
+    }
+
+    /** Кэш ключевой ставки ЦБ: (значение, дата) — null, если ещё не загружена. */
+    fun getRateKr(context: Context): Pair<Float, String>? {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val kr = p.getFloat(KEY_KR, 0f)
+        return if (kr > 0f) Pair(kr, p.getString(KEY_KR_DATE, "") ?: "") else null
+    }
+
+    fun setRateKr(context: Context, rate: Float, date: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_KR, rate)
+            .putString(KEY_KR_DATE, date)
+            .apply()
+    }
+
+    /** Направление ключевой ставки: 1 — повышение, -1 — снижение, 0 — без изменения. */
+    fun getRateKrDir(context: Context): Int =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt(KEY_KR_DIR, 0)
+
+    fun setRateKrDir(context: Context, dir: Int) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_KR_DIR, dir)
             .apply()
     }
 }

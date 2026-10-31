@@ -22,7 +22,7 @@ import java.util.zip.GZIPInputStream
  *      каждая со stories[]: annot.snippets[0].doc {title, url, source_name, logo, pub_date}.
  *
  *   https://dzen.ru/news/api/v4/rubric?rubric=showbusiness  — Шоу-бизнес
- *   https://dzen.ru/news/api/v4/rubric?region=Cheboksary    — региональная рубрика
+ *   https://dzen.ru/news/api/v4/rubric?region=Donetsk      — региональная рубрика
  *
  * Оптимизации:
  *  - gzip (1,6 МБ JSON сжимается до ~250 КБ);
@@ -36,7 +36,7 @@ object NewsRepository {
     private const val TAG = "DzenWidget"
     private const val TIMEOUT_MS = 10000
     private const val URL_RUBRIC = "https://dzen.ru/news/api/v4/rubric"
-    private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14) ZenWidget/17"
+    private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14) ZenWidget/18"
     private const val PREFS = "dzen_news_widget"
 
     /** Кэш рубрики валиден, пока не прошло FRESH_MS. */
@@ -49,7 +49,7 @@ object NewsRepository {
     /** 15 рубрик вкладки «Новости» приложения Дзен (порядок как в приложении). */
     val TOPICS = listOf(
         Topic("Главное", "index"),
-        Topic("Чебоксары", null, "Cheboksary"),
+        Topic("Донецк", null, "Donetsk"),
         Topic("Свежее", "chronologic"),
         Topic("СВО", "svo"),
         Topic("Спорт", "sport"),
@@ -82,9 +82,14 @@ object NewsRepository {
         File(context.cacheDir, "fav_" + Integer.toHexString(url.hashCode()))
 
     /** Ключ кэша рубрики: алиас rubric или region. */
+    /** Версия кэша рубрик: префикс сбрасывает устаревшие кэши (включая
+     *  чужие региональные данные) при обновлении приложения. */
+    private const val CACHE_VERSION = "v18_"
+
+    /** Ключ кэша рубрики: алиас rubric или region (с версионным префиксом). */
     private fun cacheKey(tab: Int): String {
         val t = TOPICS.getOrElse(tab) { TOPICS[0] }
-        return t.rubric ?: t.region ?: "main"
+        return CACHE_VERSION + (t.rubric ?: t.region ?: "main")
     }
 
     /** Кэшированные новости рубрики [tab] в исходном порядке API
@@ -121,6 +126,7 @@ object NewsRepository {
     private fun fetchTab(context: Context, tab: Int, force: Boolean): Boolean {
         val topic = TOPICS.getOrElse(tab) { TOPICS[0] }
         val key = cacheKey(tab)
+        val alias = topic.rubric ?: topic.region ?: "main"
         if (!force && isFresh(key) && loadCache(key).isNotEmpty()) {
             Log.w(TAG, "feed[${topic.name}]: cache fresh (<${FRESH_MS / 60000} мин), skip net")
             return true
@@ -130,7 +136,10 @@ object NewsRepository {
             else -> "rubric=" + topic.rubric
         }
         val body = httpGet(URL_RUBRIC + "?" + query) ?: return false
-        val parsed = parseRubrics(body)
+        val parsedAll = parseRubrics(body)
+        // Региональный запрос (Донецк — регион пользователя в Дзен): берём ТОЛЬКО
+        // запрошенный регион — другие рубрики ответа кэш не трогают.
+        val parsed = if (topic.region != null) parsedAll.filterKeys { it == alias } else parsedAll
         if (parsed.isEmpty()) {
             Log.w(TAG, "feed[${topic.name}]: 0 stories")
             return false
@@ -141,12 +150,12 @@ object NewsRepository {
         val allItems = mutableListOf<NewsItem>()
         for ((k, items) in parsed) {
             if (items.isNotEmpty()) {
-                saveCache(k, items, now)
+                saveCache(CACHE_VERSION + k, items, now)
                 saved++
                 allItems.addAll(items)
             }
         }
-        val own = parsed[key]?.size ?: 0
+        val own = parsed[alias]?.size ?: 0
         Log.w(TAG, "feed[${topic.name}]: $own items (saved $saved rubrics)")
         prefetchIcons(context, allItems)
         return own > 0

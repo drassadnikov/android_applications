@@ -106,7 +106,7 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.dzen_news_widget)
         Log.w(TAG, "updateWidget id=$appWidgetId")
 
-        // Строка статуса: «Обновлено 15:30 • USD 90.12▲ • EUR 98.34▼ • CNY 12.45»
+        // Строка статуса: «Обновлено 15:30 • USD 90.12▲ • EUR 98.34▼ • КС 14.00%»
         views.setTextViewText(R.id.info_line, buildInfoLine(context))
 
         // Шапка — открыть приложение Дзен (если установлено), иначе dzen.ru в браузере
@@ -160,8 +160,8 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
 
-    /** «Обновлено 15:30 • USD 90.12▲ • EUR 98.34▼ • CNY 12.45».
-     *  Цвет стрелок: подорожала — красный, подешевела — зелёный. */
+    /** «Обновлено 15:30 • USD 90.12▲ • EUR 98.34▼ • КС 14.00%».
+     *  Цвет стрелок: рост — красный, падение — зелёный. */
     private fun buildInfoLine(context: Context): CharSequence {
         val last = WidgetPrefs.getLastUpdateMillis(context)
         val time = if (last > 0) {
@@ -175,20 +175,24 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
             val dirs = WidgetPrefs.getRateDirs(context)
             appendRate(sb, "USD", rates.first, dirs.first)
             appendRate(sb, "EUR", rates.second, dirs.second)
-            appendRate(sb, "CNY", rates.third, dirs.third)
+        }
+        val kr = WidgetPrefs.getRateKr(context)
+        if (kr != null) {
+            appendRate(sb, "КС", kr.first, WidgetPrefs.getRateKrDir(context), suffix = "%")
         }
         return sb
     }
 
-    /** Курс + цветная стрелка: ▲ красный (подорожала), ▼ зелёный (подешевела). */
+    /** Курс/ставка + цветная стрелка: ▲ красный (рост), ▼ зелёный (падение). */
     private fun appendRate(
         sb: SpannableStringBuilder,
         code: String,
         value: Float,
         dir: Int,
+        suffix: String = "",
     ) {
         val start = sb.length
-        sb.append("  •  $code ${fmt(value)}")
+        sb.append("  •  $code ${fmt(value)}$suffix")
         if (dir != 0) {
             sb.append(if (dir == 1) "▲" else "▼")
             val color = if (dir == 1) 0xFFE53935.toInt() else 0xFF4CAF50.toInt()
@@ -300,7 +304,6 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
 
         /** Главная страница Дзен (открывается в браузере). */
         const val DZEN_URL = "https://dzen.ru"
-
         /** Рубрик на страницу в полосе рубрик. */
         private const val TOPICS_PER_PAGE = 4
 

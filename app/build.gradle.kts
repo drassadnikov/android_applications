@@ -13,8 +13,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // Отдельный пакет: сосуществует с оригинальным Дзен (ru.zen.android)
-        versionCode = 309273555
-        versionName = "18.1"
+        versionCode = 309273558
+        versionName = "18.4"
     }
 
     buildTypes {

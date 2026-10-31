@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Бренд-фон логотипа источника: darkred #C8102E -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#C8102E" />
+    <corners android:radius="9dp" />
+</shape>

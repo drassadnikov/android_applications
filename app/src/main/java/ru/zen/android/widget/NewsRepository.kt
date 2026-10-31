@@ -41,15 +41,15 @@ object NewsRepository {
 
     /** Кэш рубрики валиден, пока не прошло FRESH_MS. */
     private const val FRESH_MS = 10L * 60 * 1000
+    private const val TOPICS_PER_PAGE = 4
 
     /** Рубрика: [name] — подпись в виджете; [rubric] — алиас ?rubric=;
      *  [region] — алиас ?region= (региональная рубрика). */
     data class Topic(val name: String, val rubric: String?, val region: String? = null)
 
-    /** 15 рубрик вкладки «Новости» приложения Дзен (порядок как в приложении). */
-    val TOPICS = listOf(
+    /** Базовые рубрики (без регионов) — порядок как в приложении Дзен. */
+    private val BASE_TOPICS = listOf(
         Topic("Главное", "index"),
-        Topic("Донецк", null, "Donetsk"),
         Topic("Свежее", "chronologic"),
         Topic("СВО", "svo"),
         Topic("Спорт", "sport"),
@@ -64,6 +64,27 @@ object NewsRepository {
         Topic("Технологии", "computers"),
         Topic("Наука", "science"),
     )
+
+    /** Список вкладок с учётом регионов Дзен пользователя:
+     *  [Главное, [Регион 1], [Регион 2], Свежее, …] — как в веб-версии
+     *  (вторая вкладка города добавляется, только если регион №2 задан). */
+    fun topics(context: Context?): List<Topic> {
+        val list = mutableListOf(TOPICS_MAIN)
+        if (context != null) {
+            val a1 = WidgetPrefs.getRegion1Alias(context)
+            if (a1.isNotEmpty()) {
+                list.add(Topic(WidgetPrefs.getRegion1Name(context), null, a1))
+            }
+            val a2 = WidgetPrefs.getRegion2Alias(context)
+            if (a2.isNotEmpty() && a2 != a1) {
+                list.add(Topic(WidgetPrefs.getRegion2Name(context).ifEmpty { a2 }, null, a2))
+            }
+        }
+        list.addAll(BASE_TOPICS.drop(1))
+        return list
+    }
+
+    private val TOPICS_MAIN = Topic("Главное", "index")
 
     private val fetching = java.util.concurrent.atomic.AtomicBoolean()
     private var cachedContext: Context? = null
@@ -84,12 +105,32 @@ object NewsRepository {
     /** Ключ кэша рубрики: алиас rubric или region. */
     /** Версия кэша рубрик: префикс сбрасывает устаревшие кэши (включая
      *  чужие региональные данные) при обновлении приложения. */
-    private const val CACHE_VERSION = "v18_"
+    private const val CACHE_VERSION = "v18b_"
 
     /** Ключ кэша рубрики: алиас rubric или region (с версионным префиксом). */
+    /** Ключ кэша рубрики: алиас rubric или region (с версионным префиксом). */
     private fun cacheKey(tab: Int): String {
-        val t = TOPICS.getOrElse(tab) { TOPICS[0] }
-        return CACHE_VERSION + (t.rubric ?: t.region ?: "main")
+        val t = topicFor(tab, cachedContext)
+        return CACHE_VERSION + (t.rubric ?: "region_" + t.region ?: "main")
+    }
+
+    /** Тема вкладки с учётом регионов Дзен пользователя. */
+    fun topicFor(tab: Int, context: Context? = null): Topic {
+        val list = topics(context)
+        return list.getOrElse(tab) { list.first() }
+    }
+
+    /** Число страниц полосы вкладок (4 вкладки на страницу). */
+    fun topicPageCount(context: Context?): Int =
+        (topics(context).size + TOPICS_PER_PAGE - 1) / TOPICS_PER_PAGE
+
+    /** Кириллица/латиница -> алиас региона Дзен.
+     *  «Абакан» → Abakan, «Ростов-на-Дону» → Rostov-na-Donu;
+     *  не найденный в карте текст возвращается как есть (алиас в латинице). */
+    fun aliasForCity(input: String): String {
+        val t = input.trim()
+        if (t.isEmpty()) return t
+        return CITY_ALIASES[t.lowercase()] ?: t
     }
 
     /** Кэшированные новости рубрики [tab] в исходном порядке API
@@ -124,7 +165,7 @@ object NewsRepository {
 
     /** Загружает рубрику [tab] в кэш. true при успехе. */
     private fun fetchTab(context: Context, tab: Int, force: Boolean): Boolean {
-        val topic = TOPICS.getOrElse(tab) { TOPICS[0] }
+        val topic = topicFor(tab, context)
         val key = cacheKey(tab)
         val alias = topic.rubric ?: topic.region ?: "main"
         if (!force && isFresh(key) && loadCache(key).isNotEmpty()) {
@@ -137,9 +178,19 @@ object NewsRepository {
         }
         val body = httpGet(URL_RUBRIC + "?" + query) ?: return false
         val parsedAll = parseRubrics(body)
-        // Региональный запрос (Донецк — регион пользователя в Дзен): берём ТОЛЬКО
-        // запрошенный регион — другие рубрики ответа кэш не трогают.
+        // Региональный запрос: берём ТОЛЬКО запрошенный регион —
+        // другие рубрики ответа кэш не трогают.
         val parsed = if (topic.region != null) parsedAll.filterKeys { it == alias } else parsedAll
+        // Регион: синхронизируем отображаемое имя вкладки с ответом API Дзен
+        // (например, «Абакан»), чтобы вкладка показывала официальный город.
+        if (topic.region != null) {
+            regionNameFromBody(body, alias)?.let { name ->
+                val a1 = WidgetPrefs.getRegion1Alias(context)
+                val a2 = WidgetPrefs.getRegion2Alias(context)
+                if (alias == a1) WidgetPrefs.setRegion1Name(context, name)
+                else if (alias == a2) WidgetPrefs.setRegion2Name(context, name)
+            }
+        }
         if (parsed.isEmpty()) {
             Log.w(TAG, "feed[${topic.name}]: 0 stories")
             return false
@@ -150,7 +201,11 @@ object NewsRepository {
         val allItems = mutableListOf<NewsItem>()
         for ((k, items) in parsed) {
             if (items.isNotEmpty()) {
-                saveCache(CACHE_VERSION + k, items, now)
+                // Регионы сохраняем под тем же ключом, что и cacheKey()
+                // (region_<алиас>), иначе лента не подхватит кэш.
+                val saveKey = if (topic.region != null) CACHE_VERSION + "region_" + k
+                else CACHE_VERSION + k
+                saveCache(saveKey, items, now)
                 saved++
                 allItems.addAll(items)
             }
@@ -207,6 +262,7 @@ object NewsRepository {
         conn.connectTimeout = 6000
         conn.readTimeout = 6000
         conn.requestMethod = "GET"
+        conn.setRequestProperty("User-Agent", "ZenWidget/18")
         if ((200..299).contains(conn.responseCode)) {
             file.outputStream().use { out ->
                 conn.inputStream.use { it.copyTo(out) }
@@ -214,6 +270,24 @@ object NewsRepository {
         }
         conn.disconnect()
         if (file.exists() && file.length() < 100) file.delete()
+    }
+
+    /** Ответ rubric -> карты алиас -> список новостей (data.rubrics[].stories[]). */
+    /** Отображаемое имя региона из ответа API (data.rubrics[].rubric.name). */
+    private fun regionNameFromBody(body: String, alias: String): String? {
+        return try {
+            val rubrics = JSONObject(body).optJSONObject("data")?.optJSONArray("rubrics")
+                ?: return null
+            for (i in 0 until rubrics.length()) {
+                val r = rubrics.getJSONObject(i).optJSONObject("rubric") ?: continue
+                if (r.optString("alias") == alias) {
+                    return r.optString("name").trim().ifEmpty { null }
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
     }
 
     /** Ответ rubric -> карты алиас -> список новостей (data.rubrics[].stories[]). */
@@ -262,7 +336,12 @@ object NewsRepository {
         if (url.isEmpty()) url = doc.optString("url").trim()
         if (url.isEmpty()) return null
         val source = doc.optString("source_name").trim().ifEmpty { "Дзен" }
-        val logoUrl = doc.optString("logo").trim()
+        // Рабочий URL логотипа: logo_square + "/logo-square".
+        // Поле "logo" (суффикс -regular) на avatars.dzeninfra.ru отдаёт 404,
+        // а именно "logo-square" грузит живой актуальный логотип (как веб-Дзен).
+        var logoUrl = doc.optString("logo_square").trim()
+        if (logoUrl.isNotEmpty()) logoUrl += "/logo-square"
+        else logoUrl = doc.optString("logo").trim()
         val ts = doc.optString("pub_date").trim().toLongOrNull() ?: 0L
         return NewsItem(
             id = url,
@@ -363,4 +442,75 @@ object NewsRepository {
             return null
         }
     }
+
+    /** Город (кириллица, без учёта регистра) -> алиас региона Дзен (латиница).
+     *  Алиасы проверены по API dzen.ru/news/api/v4/rubric?region=… */
+    private val CITY_ALIASES = mapOf(
+        "москва" to "Moscow",
+        "санкт-петербург" to "Saint_Petersburg",
+        "новосибирск" to "Novosibirsk",
+        "екатеринбург" to "Yekaterinburg",
+        "казань" to "Kazan",
+        "нижний новгород" to "Nizhny_Novgorod",
+        "челябинск" to "Chelyabinsk",
+        "самара" to "Samara",
+        "омск" to "Omsk",
+        "ростов-на-дону" to "Rostov-na-Donu",
+        "ростов" to "Rostov-na-Donu",
+        "уфа" to "Ufa",
+        "краснодар" to "Krasnodar",
+        "пермь" to "Perm",
+        "воронеж" to "Voronezh",
+        "волгоград" to "Volgograd",
+        "красноярск" to "Krasnoyarsk",
+        "тюмень" to "Tyumen",
+        "томск" to "Tomsk",
+        "иркутск" to "Irkutsk",
+        "барнаул" to "Barnaul",
+        "владивосток" to "Vladivostok",
+        "хабаровск" to "Khabarovsk",
+        "ярославль" to "Yaroslavl",
+        "тула" to "Tula",
+        "калининград" to "Kaliningrad",
+        "севастополь" to "Sevastopol",
+        "сочи" to "Sochi",
+        "мурманск" to "Murmansk",
+        "вологда" to "Vologda",
+        "псков" to "Pskov",
+        "смоленск" to "Smolensk",
+        "брянск" to "Bryansk",
+        "курск" to "Kursk",
+        "белгород" to "Belgorod",
+        "липецк" to "Lipetsk",
+        "тамбов" to "Tambov",
+        "рязань" to "Ryazan",
+        "калуга" to "Kaluga",
+        "иваново" to "Ivanovo",
+        "кострома" to "Kostroma",
+        "владимир" to "Vladimir",
+        "тверь" to "Tver",
+        "оренбург" to "Orenburg",
+        "саратов" to "Saratov",
+        "саранск" to "Saransk",
+        "петрозаводск" to "Petrozavodsk",
+        "сыктывкар" to "Syktyvkar",
+        "йошкар-ола" to "Yoshkar-Ola",
+        "симверополь" to "Simferopol",
+        "чебоксары" to "Cheboksary",
+        "абакан" to "Abakan",
+        "донецк" to "Donetsk",
+        "запорожье" to "Zaporizhia",
+        "махачкала" to "Makhachkala",
+        "чита" to "Chita",
+        "кемерово" to "Kemerovo",
+        "киров" to "Kirov",
+        "магадан" to "Magadan",
+        "якутск" to "Yakutsk",
+        "ульяновск" to "Ulyanovsk",
+        "пенза" to "Penza",
+        "ставрополь" to "Stavropol",
+        "улан-удэ" to "Ulan-Ude",
+        "салехард" to "Salekhard",
+        "ханты-мансийск" to "Khanty-Mansiysk",
+    )
 }

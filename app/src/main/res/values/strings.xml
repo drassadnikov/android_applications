@@ -11,6 +11,11 @@
     <string name="details_dzen_missing">Требуется установить приложение Дзен (ru.zen.android).\nПосле установки виджет начнёт работать автоматически.</string>
     <string name="status_dzen_ok">Дзен установлен</string>
     <string name="details_dzen_ok">Виджет «Дзен.Новости» готов к работе.\nДобавьте его на рабочий стол:\nдолгое нажатие на фон → Виджеты → Дзен.Новости</string>
+    <string name="region1_label">Регион Дзен №1 (город)</string>
+    <string name="region2_label">Регион Дзен №2 (город)</string>
+    <string name="region_hint">Кириллицей: Абакан, Москва, Ростов-на-Дону…</string>
+    <string name="region2_hint">Кириллицей, необязательно. Пусто — без второй вкладки.</string>
+    <string name="region_save">Сохранить регион</string>
 
     <!-- Тематики (горизонтально скроллируемая полоса) -->
     <string name="topic_main">Главное</string>

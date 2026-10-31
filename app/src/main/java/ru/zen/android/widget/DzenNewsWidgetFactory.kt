@@ -41,27 +41,35 @@ class DzenNewsWidgetFactory(private val context: Context) : RemoteViewsService.R
 
         // Иконка источника: локальный drawable -> favicon из сети (кэш в файле) -> буква
         var logoShown = false
-        logoFor(item.source)?.let {
-            views.setImageViewResource(R.id.src_logo, it)
+        // Приоритет — живой актуальный логотип из CDN Дзен (кэш-файл).
+        loadFavicon(item.logoUrl)?.let {
+            views.setImageViewBitmap(R.id.src_logo, it)
             logoShown = true
         }
+        // Fallback: статичный PNG, если живой иконка ещё не подгрузилась.
         if (!logoShown) {
-            loadFavicon(item.logoUrl)?.let {
-                views.setImageViewBitmap(R.id.src_logo, it)
+            logoFor(item.source)?.let {
+                views.setImageViewResource(R.id.src_logo, it)
                 logoShown = true
             }
         }
         if (logoShown) {
             views.setInt(R.id.news_initial, "setVisibility", View.GONE)
         } else {
-            views.setTextViewText(R.id.news_initial, item.source.take(1).uppercase())
+            // Бренд-метка источника: «RT»/«В»/«МК» + фирменный цвет (как в Дзен).
+            val style = styleFor(item.source)
+            views.setTextViewText(
+                R.id.news_initial,
+                style?.label ?: item.source.take(1).uppercase(),
+            )
             views.setInt(R.id.news_initial, "setVisibility", View.VISIBLE)
+            views.setInt(
+                R.id.avatar,
+                "setBackgroundResource",
+                style?.bgRes
+                    ?: AVATARS[(item.source.hashCode() and Int.MAX_VALUE) % AVATARS.size],
+            )
         }
-        views.setInt(
-            R.id.avatar,
-            "setBackgroundResource",
-            AVATARS[(item.source.hashCode() and Int.MAX_VALUE) % AVATARS.size],
-        )
 
         val fillIn = Intent().setData(Uri.parse(item.url))
         views.setOnClickFillInIntent(R.id.row_root, fillIn)
@@ -115,7 +123,18 @@ class DzenNewsWidgetFactory(private val context: Context) : RemoteViewsService.R
         }
         return null
     }
+    /** Бренд-стиль источника для fallback (нет логотипа из API):
+     *  метка 1-2 символа + фирменный цвет фона (как в приложении Дзен). */
+    data class SourceStyle(val label: String, val bgRes: Int)
 
+    private fun styleFor(source: String): SourceStyle? {
+        SOURCE_STYLE[source]?.let { return it }
+        val upper = source.trim().uppercase()
+        for ((name, style) in SOURCE_STYLE) {
+            if (name.uppercase() == upper) return style
+        }
+        return null
+    }
     companion object {
         val SOURCE_LOGOS = mapOf(
             "РБК" to R.drawable.src_rbc,
@@ -145,6 +164,58 @@ class DzenNewsWidgetFactory(private val context: Context) : RemoteViewsService.R
             "Большая Волга" to R.drawable.src_bvolga,
         )
 
+        /** Бренд-стили (метка + цвет) для источников без PNG-логотипа. */
+        val SOURCE_STYLE = mapOf(
+            "RT на русском" to SourceStyle("RT", R.drawable.src_bg_green),
+            "Деловая газета \"Взгляд\"" to SourceStyle("В", R.drawable.src_bg_black),
+            "Life.ru" to SourceStyle("L", R.drawable.src_bg_red),
+            "Lenta.ru" to SourceStyle("Л", R.drawable.src_bg_red),
+            "Комсомольская правда" to SourceStyle("КП", R.drawable.src_bg_red),
+            "Комсомольская Правда - Спорт" to SourceStyle("КП", R.drawable.src_bg_red),
+            "Комсомольская правда Чувашия" to SourceStyle("КП", R.drawable.src_bg_red),
+            "Московский Комсомолец" to SourceStyle("МК", R.drawable.src_bg_red),
+            "Московский Комсомолец Чувашия" to SourceStyle("МК", R.drawable.src_bg_red),
+            "МК Донбасс" to SourceStyle("МК", R.drawable.src_bg_red),
+            "КП - Донецк" to SourceStyle("КП", R.drawable.src_bg_red),
+            "Российская газета" to SourceStyle("РГ", R.drawable.src_bg_darkred),
+            "Царьград" to SourceStyle("Ц", R.drawable.src_bg_darkred),
+            "\"Знамя труда Чувашия\"" to SourceStyle("З", R.drawable.src_bg_darkred),
+            "7Дней.ру" to SourceStyle("7", R.drawable.src_bg_red),
+            "Донецк Медиа" to SourceStyle("ДМ", R.drawable.src_bg_red),
+            "Donbasstoday.ru" to SourceStyle("Д", R.drawable.src_bg_red),
+            "Вести" to SourceStyle("В", R.drawable.src_bg_blue),
+            "Pro Город" to SourceStyle("ПГ", R.drawable.src_bg_blue),
+            "Pro Город Чебоксары" to SourceStyle("ПГ", R.drawable.src_bg_blue),
+            "Донецкое агентство новостей" to SourceStyle("ДАН", R.drawable.src_bg_blue),
+            "Regions.ru" to SourceStyle("R", R.drawable.src_bg_blue),
+            "ИА Регнум" to SourceStyle("Р", R.drawable.src_bg_blue),
+            "Агентство Москва" to SourceStyle("А", R.drawable.src_bg_blue),
+            "РИАМО" to SourceStyle("РМ", R.drawable.src_bg_blue),
+            "ПРАЙМ" to SourceStyle("П", R.drawable.src_bg_blue),
+            "Finam.Ru" to SourceStyle("Ф", R.drawable.src_bg_blue),
+            "За рулем" to SourceStyle("ЗР", R.drawable.src_bg_blue),
+            "Автоновости дня" to SourceStyle("А", R.drawable.src_bg_blue),
+            "Советский спорт" to SourceStyle("СС", R.drawable.src_bg_blue),
+            "Правда ПФО" to SourceStyle("П", R.drawable.src_bg_blue),
+            "Мой город.Онлайн" to SourceStyle("М", R.drawable.src_bg_blue),
+            "BFM.ru" to SourceStyle("B", R.drawable.src_bg_blue),
+            "Ньюс-НН" to SourceStyle("Н", R.drawable.src_bg_blue),
+            "Ямал-Медиа" to SourceStyle("Я", R.drawable.src_bg_blue),
+            "Официальный портал Мэра и Правительства Москвы" to SourceStyle("М", R.drawable.src_bg_blue),
+            "Главный региональный" to SourceStyle("Г", R.drawable.src_bg_blue),
+            "Спортс\"" to SourceStyle("С", R.drawable.src_bg_blue),
+            "Чувашинформ" to SourceStyle("Ч", R.drawable.src_bg_blue),
+            "NEWS.ru" to SourceStyle("N", R.drawable.src_bg_blue),
+            "Ferra" to SourceStyle("F", R.drawable.src_bg_orange),
+            "Муз-ТВ" to SourceStyle("М", R.drawable.src_bg_yellow),
+            "StavkiPrognozy" to SourceStyle("С", R.drawable.src_bg_yellow),
+            "Леди Mail.ru" to SourceStyle("L", R.drawable.src_bg_yellow),
+            "Чебоксары Live" to SourceStyle("Ч", R.drawable.src_bg_yellow),
+            "Naked Science" to SourceStyle("NS", R.drawable.src_bg_purple),
+            "TechInsider" to SourceStyle("T", R.drawable.src_bg_purple),
+            "Science XXI" to SourceStyle("S", R.drawable.src_bg_purple),
+            "MiraNews" to SourceStyle("M", R.drawable.src_bg_purple),
+        )
         val AVATARS = intArrayOf(
             R.drawable.dzen_avatar_blue,
             R.drawable.dzen_avatar_cyan,

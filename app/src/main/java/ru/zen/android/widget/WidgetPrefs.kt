@@ -192,4 +192,59 @@ object WidgetPrefs {
             .putInt(KEY_KR_DIR, dir)
             .apply()
     }
+
+    // ---- Регионы Дзен (вкладки «город», до двух, как в веб-версии) ----
+
+    private const val KEY_REGION_ALIAS = "region_alias"
+    private const val KEY_REGION_NAME = "region_name"
+    private const val KEY_REGION2_ALIAS = "region2_alias"
+    private const val KEY_REGION2_NAME = "region2_name"
+
+    /** Алиас региона №1 в API Дзен (латиница): Abakan, Donetsk, Moscow, … */
+    fun getRegion1Alias(context: Context): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_REGION_ALIAS, "Abakan") ?: "Abakan"
+
+    fun setRegion1Alias(context: Context, alias: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_REGION_ALIAS, alias.trim())
+            .apply()
+    }
+
+    /** Отображаемое название региона №1 — автосинхронизируется из API Дзен. */
+    fun getRegion1Name(context: Context): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_REGION_NAME, "Абакан") ?: "Абакан"
+
+    fun setRegion1Name(context: Context, name: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_REGION_NAME, name)
+            .apply()
+    }
+
+    /** Алиас региона №2 ("" — вторая вкладка города выключена). */
+    fun getRegion2Alias(context: Context): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_REGION2_ALIAS, "") ?: ""
+
+    fun setRegion2Alias(context: Context, alias: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_REGION2_ALIAS, alias.trim())
+            .apply()
+    }
+
+    /** Отображаемое название региона №2 — автосинхронизируется из API Дзен. */
+    fun getRegion2Name(context: Context): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_REGION2_NAME, "") ?: ""
+
+    fun setRegion2Name(context: Context, name: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_REGION2_NAME, name)
+            .apply()
+    }
 }

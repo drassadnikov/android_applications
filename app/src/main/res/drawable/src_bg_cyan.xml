@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Бренд-фон логотипа источника: cyan #00ACC1 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#00ACC1" />
+    <corners android:radius="9dp" />
+</shape>

@@ -2,6 +2,8 @@ package ru.zen.android.widget
 
 import android.app.Activity
 import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 
 /**
@@ -30,6 +32,30 @@ class MainActivity : Activity() {
         }
 
         // Приложение активно — подгружаем курсы (стрелки в виджете)
+        // Приложение активно — подгружаем курсы (стрелки в виджете)
         RatesRepository.fetchAndCacheAsync(applicationContext)
+
+        // Регионы Дзен (вкладки «город»): до двух, ввод кириллицей —
+        // виджет сам найдёт алиас региона (Абакан → Abakan).
+        val etRegion1 = findViewById<EditText>(R.id.et_region1)
+        val etRegion2 = findViewById<EditText>(R.id.et_region2)
+        val btnRegion = findViewById<Button>(R.id.btn_region)
+        etRegion1.setText(WidgetPrefs.getRegion1Alias(this))
+        etRegion2.setText(WidgetPrefs.getRegion2Alias(this))
+        btnRegion.setOnClickListener {
+            val a1 = NewsRepository.aliasForCity(etRegion1.text.toString())
+            val a2 = NewsRepository.aliasForCity(etRegion2.text.toString())
+            if (a1.isNotEmpty()) {
+                WidgetPrefs.setRegion1Alias(this, a1)
+                WidgetPrefs.setRegion2Alias(this, a2)
+                // Сразу подгружаем ленты регионов (имена вкладок
+                // синхронизируются из ответа API Дзен)
+                NewsRepository.fetchTabAsync(applicationContext, 1, force = true) {
+                    if (a2.isNotEmpty() && a2 != a1) {
+                        NewsRepository.fetchTabAsync(applicationContext, 2, force = true)
+                    }
+                }
+            }
+        }
     }
 }

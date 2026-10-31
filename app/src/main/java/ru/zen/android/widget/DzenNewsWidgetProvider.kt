@@ -67,7 +67,7 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
             ACTION_TOPIC_PAGE -> {
                 val delta = intent.getIntExtra(EXTRA_DELTA, 0)
                 val page = (WidgetPrefs.getTopicPage(context) + delta)
-                    .coerceIn(0, TOPIC_PAGE_COUNT - 1)
+                    .coerceIn(0, NewsRepository.topicPageCount(context) - 1)
                 Log.w(TAG, "topic page: $page")
                 WidgetPrefs.setTopicPage(context, page)
                 refreshAll(context)
@@ -210,15 +210,15 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
 
     /** Полоса рубрик: 4 рубрики текущей страницы + кнопки ‹ ›. */
     private fun applyTopicPage(context: Context, views: RemoteViews) {
-        val page = WidgetPrefs.getTopicPage(context).coerceIn(0, TOPIC_PAGE_COUNT - 1)
+        val page = WidgetPrefs.getTopicPage(context).coerceIn(0, NewsRepository.topicPageCount(context) - 1)
         val activeTab = WidgetPrefs.getActiveTab(context)
         val slotIds = intArrayOf(
             R.id.topic_a, R.id.topic_b, R.id.topic_c, R.id.topic_d,
         )
         slotIds.forEachIndexed { slot, viewId ->
             val tabIndex = page * TOPICS_PER_PAGE + slot
-            if (tabIndex < NewsRepository.TOPICS.size) {
-                views.setTextViewText(viewId, NewsRepository.TOPICS[tabIndex].name)
+            if (tabIndex < NewsRepository.topics(context).size) {
+                views.setTextViewText(viewId, NewsRepository.topicFor(tabIndex, context).name)
                 views.setTextColor(
                     viewId,
                     if (tabIndex == activeTab) 0xFFFFFFFF.toInt() else 0xFFAAAAAA.toInt(),
@@ -236,7 +236,7 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
         views.setInt(
             R.id.topic_next,
             "setVisibility",
-            if (page < TOPIC_PAGE_COUNT - 1) View.VISIBLE else View.INVISIBLE,
+            if (page < NewsRepository.topicPageCount(context) - 1) View.VISIBLE else View.INVISIBLE,
         )
         views.setOnClickPendingIntent(R.id.topic_prev, pageIntent(context, -1))
         views.setOnClickPendingIntent(R.id.topic_next, pageIntent(context, +1))
@@ -307,8 +307,6 @@ class DzenNewsWidgetProvider : AppWidgetProvider() {
         /** Рубрик на страницу в полосе рубрик. */
         private const val TOPICS_PER_PAGE = 4
 
-        /** Число страниц рубрик: 12 / 4. */
-        val TOPIC_PAGE_COUNT = (NewsRepository.TOPICS.size + TOPICS_PER_PAGE - 1) / TOPICS_PER_PAGE
 
         private val TIME_FORMAT =
             SimpleDateFormat("HH:mm", Locale.getDefault())
